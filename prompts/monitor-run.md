@@ -19,9 +19,28 @@ Notify: `{{NOTIFY_EMAIL}}`.
 
 If `state.holding_tab` is not null, call `tabs_context_mcp` and check whether
 that tabId still exists.
-- Still there: do nothing, send nothing, end immediately. A previous run is
-  already parked on the confirmation page waiting for the user.
-- Gone: set `holding_tab` to null and continue.
+
+- **Gone** (user closed it): set `holding_tab`, `held_slot`, `held_since` and
+  `held_nag_at` to null and continue to step 2.
+- **Still there**: the tab is parked on a confirmation page the user has not
+  clicked yet. Do not touch the tab, do not reload it, do not click anything in
+  it. Decide by how long it has been parked, using `state.held_since`:
+
+  - **under {{HELD_NAG_MINUTES}} minutes**: send nothing, end.
+  - **at or past {{HELD_NAG_MINUTES}} minutes, and `held_nag_at` is null or
+    older than {{HELD_NAG_MINUTES}} minutes**: send ONE PushNotification —
+    `"<slot> still waiting for your confirm — slot may be gone"` — set
+    `held_nag_at` to now, write state back, end. Do not email; the hit email
+    already went out.
+  - **at or past {{HELD_RELEASE_HOURS}} hours**: give up on this slot. The user
+    did not click and it is almost certainly taken. Clear `holding_tab`,
+    `held_slot`, `held_since` and `held_nag_at`, and REMOVE that date from
+    `alerted_dates` so a future opening on it can alert again. Send one
+    PushNotification — `"released <slot>, monitoring resumed"` — then continue
+    to step 2 and run a normal check this same run.
+
+  Parking must never blind the monitor indefinitely: a slot the user never
+  confirmed is worth less than catching the date they actually want.
 
 ## 2. Open the page once
 
@@ -138,7 +157,9 @@ c. Go back to the page, click that earliest date, pick the earliest time slot
 d. DO NOT click the final Confirm / Submit / Reschedule button. That click
    belongs to the user and to nobody else. Stop on the last step, screenshot,
    store the tabId in `state.holding_tab`, write state back. Leave the tab
-   open — do not close it, reload it, or navigate away.
+   open — do not close it, reload it, or navigate away. Also set `held_since`
+   to the current ISO timestamp and `held_nag_at` to null, so step 1 can nag and
+   later release it.
 e. If the slot is taken mid-flow or the page errors: do not retry another date.
    Send a PushNotification saying the slot was taken, leave `holding_tab` null,
    write state back, end.

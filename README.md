@@ -55,6 +55,8 @@ the interval in `interval_cron`.
 | `notify_email` | where hit and blocked alerts go |
 | `interval_cron` | 5-field cron; avoid `:00`/`:30` |
 | `stuck_realert_hours` | how often to re-nag while blocked |
+| `held_nag_minutes` | remind this long after parking on a slot |
+| `held_release_hours` | give up on an unconfirmed slot after this long |
 | `state_file` | where run-to-run state lives (outside the repo) |
 
 ## State
@@ -65,6 +67,9 @@ confirmation tab is never disturbed:
 - `alerted_dates` — dates already announced
 - `holding_tab` — tabId parked on a confirmation page; while set, every run
   exits immediately and leaves it alone
+- `held_since` / `held_nag_at` — when the tab was parked and when the user was
+  last nagged; after `held_nag_minutes` it pushes a reminder, after
+  `held_release_hours` it gives up on the slot and resumes checking
 - `stuck_since` — when the monitor first got blocked, drives re-alerts
 - `last_seen_available` — last full read of the calendar
 
@@ -91,8 +96,11 @@ Read these before relying on it.
    will not be caught by any polling interval you can safely use. What this
    catches is slots that sit unclaimed for minutes — cancellations, batch
    releases.
-5. **It does not secure the slot.** It parks on the confirmation screen and
-   waits for you. The slot can be gone by the time you click.
+5. **It does not secure the slot.** Selecting a date and time does not submit
+   anything, and almost certainly places no server-side hold — parking saves you
+   the clicks, not the slot. It can be gone by the time you click Submit. If you
+   do not confirm, the monitor nags once and then releases the slot and resumes
+   checking, so a stale park never blinds it.
 6. **Polling faster raises your risk.** More frequent checks mean more
    Cloudflare challenges and more chance the site flags the account. The
    monitor stops and asks for help rather than pushing through.

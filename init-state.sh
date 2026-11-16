@@ -18,6 +18,9 @@ json.dump({
     "alerted_dates": [],
     "stuck_since": None,
     "holding_tab": None,
+    "held_slot": None,
+    "held_since": None,
+    "held_nag_at": None,
 }, open(path, "w"), indent=2)
 print(f"wrote {path}")
 PY
