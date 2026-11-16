@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Opens a Terminal window at login that starts the monitor.
+     The Chrome automation tools only exist in an INTERACTIVE Claude Code
+     session, so there is no headless/background option: a window must stay
+     open. This is the closest thing to auto-start that actually works.
+
+     Install:
+       sed "s|__REPO__|$PWD|g" autostart/com.visa-monitor.plist.example \
+         > ~/Library/LaunchAgents/com.visa-monitor.plist
+       launchctl load ~/Library/LaunchAgents/com.visa-monitor.plist
+
+     Uninstall:
+       launchctl unload ~/Library/LaunchAgents/com.visa-monitor.plist
+       rm ~/Library/LaunchAgents/com.visa-monitor.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.visa-monitor</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/osascript</string>
+    <string>-e</string>
+    <string>delay 25</string>
+    <string>-e</string>
+    <string>tell application "Terminal" to do script "__REPO__/start.sh"</string>
+    <string>-e</string>
+    <string>tell application "Terminal" to activate</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>

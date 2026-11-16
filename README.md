@@ -60,6 +60,34 @@ the interval in `interval_cron`.
 | `held_release_hours` | give up on an unconfirmed slot after this long |
 | `state_file` | where run-to-run state lives (outside the repo) |
 
+## Restarting it (after a reboot)
+
+The monitor does not survive a reboot, and it cannot be made to. The Chrome
+automation tools exist **only inside an interactive Claude Code session** —
+a headless `claude -p` run reports the tool as not available, so there is no
+background/daemon option. A window has to stay open.
+
+What you can do is make restarting a single step:
+
+```sh
+./start.sh
+```
+
+That re-renders the prompt, opens a Claude Code session, recreates the
+recurring job, and runs one check immediately.
+
+To have that happen at login instead, install the bundled launch agent:
+
+```sh
+sed "s|__REPO__|$PWD|g" autostart/com.visa-monitor.plist.example \
+  > ~/Library/LaunchAgents/com.visa-monitor.plist
+launchctl load ~/Library/LaunchAgents/com.visa-monitor.plist
+```
+
+A Terminal window then opens ~25 seconds after each login and starts the
+monitor. Remove it with `launchctl unload` and `rm` on the same path.
+Chrome must be running and signed in to the scheduling site either way.
+
 ## State
 
 A JSON file outside the repo, so a hit is never announced twice and a parked
