@@ -54,7 +54,8 @@ the interval in `interval_cron`.
 | `scan_views` | which two-month calendar views to scan, priority first |
 | `notify_email` | where hit and blocked alerts go |
 | `interval_cron` | 5-field cron; avoid `:00`/`:30` |
-| `stuck_realert_hours` | how often to re-nag while blocked |
+| `stuck_realert_hours` | how often to re-nag while it needs your click |
+| `block_realert_hours` | how often to re-notify during a Cloudflare ban |
 | `held_nag_minutes` | remind this long after parking on a slot |
 | `held_release_hours` | give up on an unconfirmed slot after this long |
 | `state_file` | where run-to-run state lives (outside the repo) |
@@ -101,9 +102,19 @@ Read these before relying on it.
    the clicks, not the slot. It can be gone by the time you click Submit. If you
    do not confirm, the monitor nags once and then releases the slot and resumes
    checking, so a stale park never blinds it.
-6. **Polling faster raises your risk.** More frequent checks mean more
-   Cloudflare challenges and more chance the site flags the account. The
-   monitor stops and asks for help rather than pushing through.
+6. **Polling faster gets you banned — this is measured, not theoretical.**
+   At a 10-minute interval this monitor triggered a Cloudflare WAF block
+   ("Sorry, you have been blocked") after about five hours, and the ban was
+   still in place eight hours later. A human-verification challenge also
+   appeared every 20-60 minutes, and only the user can clear those. Hourly is
+   the recommended default: roughly one page load per hour is ordinary browsing
+   and does not accumulate into a ban. Do not go faster because a hit feels
+   urgent; a banned monitor catches nothing at all.
+7. **A ban and a challenge are different failures.** A WAF ban needs nothing
+   from you and lifts on its own, so the monitor keeps probing once per run,
+   tells you once, and resumes by itself. A verification checkbox or a login
+   *does* need you, so it pauses and nags. Refreshing the site during a ban
+   extends it — leave it alone.
 
 ## Privacy
 

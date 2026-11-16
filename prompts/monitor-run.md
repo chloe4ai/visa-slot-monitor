@@ -48,43 +48,76 @@ Call `tabs_context_mcp`. Reuse an existing tab on the scheduling domain and
 navigate it to `{{SITE_URL}}`; otherwise `tabs_create_mcp` then navigate.
 Load the page ONCE per run. Never reload in a loop.
 
-## 3. Blocked / stuck detection
+## 3. Health probe
 
 Wait 10 seconds, then run ONE cheap `javascript_tool` probe — do not take a
-screenshot, it costs far more than it tells you:
+screenshot, it costs far more than it tells you. The probe must be null-safe:
+`document.body` can still be null mid-load.
 
 ```js
-JSON.stringify({
-  title: document.title,
-  challenge: /just a moment|verify you are human|security verification/i
-    .test(document.title + ' ' + document.body.innerText.slice(0, 500)),
-  login: /sign in|log in|\u767b\u5f55|security question/i
-    .test(document.body.innerText.slice(0, 500)),
-  hasCalendarUI: !!document.querySelector('#datepicker'),
-  hasPostSelect: !!document.querySelector('select')
-})
+(() => {
+  const t = document.title || '';
+  const b = document.body ? document.body.innerText.slice(0, 600) : '';
+  return JSON.stringify({
+    title: t,
+    blocked: /you have been blocked|attention required/i.test(t + ' ' + b),
+    challenge: /just a moment|verify you are human|security verification/i.test(t + ' ' + b),
+    login: /sign in|log in|登录|security question/i.test(b),
+    hasCalendarUI: !!document.querySelector('#datepicker'),
+    hasPostSelect: !!document.querySelector('select')
+  });
+})()
 ```
 
-You are STUCK if `challenge` or `login` is true, if `hasPostSelect` is false, or
-if the probe itself throws or the page never loads. Take a screenshot ONLY when
-the probe says stuck and you cannot tell why — never on the happy path.
+Three outcomes, in this order. They are NOT the same thing and must not be
+handled the same way.
 
-If stuck:
+### 3a. `blocked` is true — Cloudflare WAF ban
+
+The request is being refused at the edge. **The user cannot fix this by
+clicking anything** — it is an IP/fingerprint ban that expires on its own. So
+do not tell them to go clear it, do not open another tab, do not switch
+networks, and do not retry inside this run. One probe per run IS the backoff.
+
+- `state.blocked_since` is null (first detection): set it and
+  `block_last_alert` to now. Send ONE Gmail to `{{NOTIFY_EMAIL}}`, subject
+  "[Visa monitor] Blocked by Cloudflare — will retry on its own", plus ONE
+  PushNotification. Say: access is blocked, the monitor keeps probing once an
+  hour and resumes by itself when the ban lifts, nothing is needed from them,
+  and they should NOT sit refreshing the site because that extends the ban.
+- Otherwise, if `now - state.block_last_alert >= {{BLOCK_REALERT_HOURS}}`
+  hours: send ONE PushNotification saying how many hours it has been blocked
+  and that probing continues. Set `block_last_alert` to now. No email.
+- Otherwise: send nothing.
+
+Then increment `block_checks`, write the state file back, and end.
+
+### 3b. `challenge` or `login` is true, or `hasPostSelect` is false — needs a human
+
+This one DOES need her: a human-verification checkbox, a login, or a site
+error. Monitoring is paused until she opens Chrome.
+
 - NEVER click the verification checkbox, never try to pass the challenge, never
-  type a password. These are the user's to do.
-- Read `state.stuck_since`. If it is null, set it to the current ISO timestamp
-  and treat this as a FIRST stuck event.
+  type a password. These are hers to do.
+- Read `state.stuck_since`. If null, set it to now and treat this as a FIRST
+  stuck event.
 - Alert if this is a first stuck event, OR if
-  `now - state.stuck_since >= {{STUCK_REALERT_HOURS}} hours` (then reset
+  `now - state.stuck_since >= {{STUCK_REALERT_HOURS}}` hours (then reset
   `stuck_since` to now so the next reminder is another interval away).
   - Alert = Gmail to `{{NOTIFY_EMAIL}}`, subject
-    "[Visa monitor] Blocked — needs a human", body saying what blocked it
-    (Cloudflare / login / error), when it first got stuck, and that monitoring
-    is PAUSED until they open Chrome and clear it. Plus a PushNotification.
+    "[Visa monitor] Needs your click — verification or login", body saying
+    which of the three it is, when it first got stuck, and that monitoring is
+    PAUSED until she opens Chrome and clears it. Plus a PushNotification.
 - Otherwise send nothing.
-- Write the state file back and end.
+- Write the state file back and end. Take a screenshot ONLY if you genuinely
+  cannot tell which of the three it is — never on the happy path.
 
-If not stuck: set `state.stuck_since` to null and continue.
+### 3c. Healthy
+
+If `state.blocked_since` was not null, the ban has just lifted: send ONE
+PushNotification — `"access restored, monitoring resumed"` — and clear
+`blocked_since`, `block_checks` and `block_last_alert`. Then set
+`state.stuck_since` to null and continue to step 4 in this same run.
 
 ## 4. Select applicant and post
 

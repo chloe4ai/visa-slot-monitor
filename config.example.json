@@ -18,9 +18,10 @@
     }
   ],
   "notify_email": "you@example.com",
-  "interval_cron": "4-59/10 * * * *",
+  "interval_cron": "7 * * * *",
   "stuck_realert_hours": 2,
   "state_file": "~/.visa-slot-monitor-state.json",
   "held_nag_minutes": 30,
-  "held_release_hours": 2
+  "held_release_hours": 2,
+  "block_realert_hours": 6
 }

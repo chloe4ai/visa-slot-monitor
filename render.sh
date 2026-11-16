@@ -26,6 +26,7 @@ vals = {
     "NOTIFY_EMAIL": cfg["notify_email"],
     "STATE_FILE": cfg["state_file"],
     "STUCK_REALERT_HOURS": str(cfg["stuck_realert_hours"]),
+    "BLOCK_REALERT_HOURS": str(cfg["block_realert_hours"]),
     "HELD_NAG_MINUTES": str(cfg["held_nag_minutes"]),
     "HELD_RELEASE_HOURS": str(cfg["held_release_hours"]),
     "SCAN_VIEWS": views,

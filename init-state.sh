@@ -21,6 +21,9 @@ json.dump({
     "held_slot": None,
     "held_since": None,
     "held_nag_at": None,
+    "blocked_since": None,
+    "block_last_alert": None,
+    "block_checks": 0,
 }, open(path, "w"), indent=2)
 print(f"wrote {path}")
 PY
