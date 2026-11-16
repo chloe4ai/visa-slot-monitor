@@ -1,0 +1,14 @@
+{
+  "site_url": "https://www.usvisascheduling.com/zh-CN/schedule/",
+  "consular_post": "CONSULAR_POST_NAME",
+  "applicant_name": "APPLICANT_FULL_NAME",
+  "threshold_date": "YYYY-MM-DD",
+  "scan_views": [
+    { "year": 2026, "month": "Nov", "priority": true,  "note": "shows Nov + Dec" },
+    { "year": 2027, "month": "Jan", "priority": false, "note": "shows Jan + Feb" }
+  ],
+  "notify_email": "you@example.com",
+  "interval_cron": "4-59/10 * * * *",
+  "stuck_realert_hours": 2,
+  "state_file": "~/.visa-slot-monitor-state.json"
+}

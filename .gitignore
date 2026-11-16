@@ -1,0 +1,7 @@
+# Local config and runtime state — never commit these.
+# They contain the applicant name, email address and appointment details.
+config.json
+state.json
+*.local.json
+.DS_Store
+run-prompt.txt
