@@ -31,11 +31,24 @@ Load the page ONCE per run. Never reload in a loop.
 
 ## 3. Blocked / stuck detection
 
-Wait 10 seconds, take a screenshot. You are STUCK if you see any of:
-- a Cloudflare interstitial ("Verify you are human", "Performing security
-  verification", "Just a moment...")
-- a login page, a security-question page, or a session-expired page
-- the page fails to load, times out, or errors
+Wait 10 seconds, then run ONE cheap `javascript_tool` probe — do not take a
+screenshot, it costs far more than it tells you:
+
+```js
+JSON.stringify({
+  title: document.title,
+  challenge: /just a moment|verify you are human|security verification/i
+    .test(document.title + ' ' + document.body.innerText.slice(0, 500)),
+  login: /sign in|log in|\u767b\u5f55|security question/i
+    .test(document.body.innerText.slice(0, 500)),
+  hasCalendarUI: !!document.querySelector('#datepicker'),
+  hasPostSelect: !!document.querySelector('select')
+})
+```
+
+You are STUCK if `challenge` or `login` is true, if `hasPostSelect` is false, or
+if the probe itself throws or the page never loads. Take a screenshot ONLY when
+the probe says stuck and you cannot tell why — never on the happy path.
 
 If stuck:
 - NEVER click the verification checkbox, never try to pass the challenge, never
@@ -61,15 +74,44 @@ Use `find` / `read_page` to locate the applicant label for
 `form_input` the consular-post dropdown to `{{CONSULAR_POST}}`. Wait 5 seconds.
 The calendar does not render until both are set.
 
-## 5. Scan the calendar
+## 5. Read availability in ONE call
 
-The calendar shows two months per view. Scan the views listed in
-`{{SCAN_VIEWS}}`, priority views first. For each view: `form_input` the year
-dropdown, then the month dropdown, wait, then `read_page filter=interactive`.
+The calendar is a jQuery UI datepicker whose `beforeShowDay` callback decides
+whether each day is selectable, and the whole availability set is already in the
+page after step 4 — changing months fires no network request. So do NOT page
+through months, screenshot, or read the accessibility tree. Ask the page once
+with `javascript_tool`:
 
-Only day cells that appear as clickable links (`link "3"`) have availability.
-Greyed-out cells do not. Element refs are invalidated on every month or year
-change — re-read the page after each switch.
+```js
+(() => {
+  const $ = window.jQuery;
+  const inst = $.data(document.getElementById('datepicker'), 'datepicker');
+  const fn = inst && inst.settings && inst.settings.beforeShowDay;
+  if (typeof fn !== 'function') return 'FALLBACK';
+  const open = [];
+  const d = new Date({{SCAN_FROM}});
+  const end = new Date({{SCAN_TO}});
+  while (d <= end) {
+    let r; try { r = fn.call(inst, new Date(d)); } catch (e) { r = null; }
+    if (r && r[0] === true) open.push(
+      `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+    d.setDate(d.getDate() + 1);
+  }
+  return JSON.stringify({ openCount: open.length, open });
+})()
+```
+
+Scan from today through `{{THRESHOLD_DATE}}` inclusive. Note the JS `Date`
+month argument is zero-based: January is 0.
+
+This returns every open date in one short result. It reads data the page has
+already loaded in the user's own session — it does not forge requests, replay
+cookies, or go around the site's bot protection. Never do those things.
+
+If the snippet returns `FALLBACK` or throws, fall back to the slow path for this
+run only: set the year and month dropdowns per view, `read_page
+filter=interactive`, and treat clickable `link "<day>"` cells as available.
+Element refs are invalidated on every month or year change.
 
 ## 6. Decide
 

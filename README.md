@@ -80,13 +80,20 @@ Read these before relying on it.
    process is left to send you an alert. The blocked-alert in step 3 only
    covers the case where the monitor is alive but the *site* is blocking it.
    Check in on it yourself.
-3. **Polling loses races.** Slots that are released and taken within seconds
+3. **It reads, it does not scrape.** Availability is pulled from the page's own
+   already-loaded datepicker in your logged-in session — one JavaScript call per
+   run, no screenshots, no month-by-month paging. It never extracts cookies,
+   replays a `cf_clearance` token, or calls the site's endpoints from a script.
+   Going around the bot protection is what gets an applicant account banned, and
+   it would not even help here: the calendar makes no network call, so you have
+   to load the page either way.
+4. **Polling loses races.** Slots that are released and taken within seconds
    will not be caught by any polling interval you can safely use. What this
    catches is slots that sit unclaimed for minutes — cancellations, batch
    releases.
-4. **It does not secure the slot.** It parks on the confirmation screen and
+5. **It does not secure the slot.** It parks on the confirmation screen and
    waits for you. The slot can be gone by the time you click.
-5. **Polling faster raises your risk.** More frequent checks mean more
+6. **Polling faster raises your risk.** More frequent checks mean more
    Cloudflare challenges and more chance the site flags the account. The
    monitor stops and asks for help rather than pushing through.
 

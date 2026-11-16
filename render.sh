@@ -9,10 +9,15 @@ import json, re, sys, pathlib
 cfg = json.load(open(sys.argv[1]))
 tpl = pathlib.Path("prompts/monitor-run.md").read_text()
 tpl = tpl.split("---\n", 1)[1]
+MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 views = "; ".join(
     f"{v['year']} {v['month']}" + (" (PRIORITY)" if v.get("priority") else "")
     for v in cfg["scan_views"]
 )
+first = min(cfg["scan_views"], key=lambda v: (v["year"], MONTHS.index(v["month"])))
+scan_from = f'{first["year"]}, {MONTHS.index(first["month"])}, 1'
+ty, tm, td = (int(x) for x in cfg["threshold_date"].split("-"))
+scan_to = f"{ty}, {tm - 1}, {td}"
 vals = {
     "SITE_URL": cfg["site_url"],
     "CONSULAR_POST": cfg["consular_post"],
@@ -22,6 +27,8 @@ vals = {
     "STATE_FILE": cfg["state_file"],
     "STUCK_REALERT_HOURS": str(cfg["stuck_realert_hours"]),
     "SCAN_VIEWS": views,
+    "SCAN_FROM": scan_from,
+    "SCAN_TO": scan_to,
 }
 missing = set(re.findall(r"\{\{(\w+)\}\}", tpl)) - set(vals)
 if missing:
